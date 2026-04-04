@@ -34,18 +34,19 @@ print(f"  Products remaining: {obs['products_remaining']}")
 # Place Box A at (0, 0)
 r = requests.post(f"{BASE}/step", json={"position": [0, 0]})
 d = r.json()
-print(f"\n[POST /step] Place at [0,0]: {d['observation']['message']}")
+print(f"\n[POST /step] Place at [0,0]: {d['observation']['message']}  reward={d['reward']:.4f}")
 print("  Grid:")
 for row in d["observation"]["grid"]:
     print(f"    {row}")
 
 # Try blocked cell (1,1)
 r = requests.post(f"{BASE}/step", json={"position": [1, 1]})
-print(f"\n[POST /step] Try blocked [1,1]: {r.json()['observation']['message']}")
+print(f"\n[POST /step] Try blocked [1,1]: {r.json()['observation']['message']}  reward={r.json()['reward']:.4f}")
 
 # Place Box B at (0, 1)
 r = requests.post(f"{BASE}/step", json={"position": [0, 1]})
-print(f"[POST /step] Place at [0,1]: {r.json()['observation']['message']}")
+d2 = r.json()
+print(f"[POST /step] Place at [0,1]: {d2['observation']['message']}  reward={d2['reward']:.4f}")
 
 r = requests.get(f"{BASE}/state")
 s = r.json()["state"]
@@ -75,17 +76,14 @@ print(f"  Related products for current: {obs['related_products']}")
 # Place Hammer at (0, 0)
 r = requests.post(f"{BASE}/step", json={"position": [0, 0]})
 d = r.json()
-print("Important")
-print(d)
-print("^Important")
-print(f"\n[POST /step] Place Hammer at [0,0]: {d['observation']['message']}")
+print(f"\n[POST /step] Place Hammer at [0,0]: {d['observation']['message']}  reward={d['reward']:.4f}")
 print(f"  Next product: {d['observation']['current_product']}")
 print(f"  Related products for Nails: {d['observation']['related_products']}")
 
 # Place Nails at (0, 1) — adjacent to Hammer
 r = requests.post(f"{BASE}/step", json={"position": [0, 1]})
 d = r.json()
-print(f"\n[POST /step] Place Nails at [0,1] (adjacent to Hammer): {d['observation']['message']}")
+print(f"\n[POST /step] Place Nails at [0,1] (adjacent to Hammer): {d['observation']['message']}  reward={d['reward']:.4f}")
 print(f"  Grid after 2 placements:")
 for row in d["observation"]["grid"]:
     print(f"    {row}")
@@ -124,17 +122,17 @@ for rule in obs["safety_rules"]:
 # Place Glass Vase (fragile) at top rack level 2 — correct placement
 r = requests.post(f"{BASE}/step", json={"position": [1, 1, 2]})
 d = r.json()
-print(f"\n[POST /step] Place Glass Vase at [1,1,2] (top rack): {d['observation']['message']}")
+print(f"\n[POST /step] Place Glass Vase at [1,1,2] (top rack): {d['observation']['message']}  reward={d['reward']:.4f}")
 
 # Place Fuel Can (flammable) — should go away from heat/electrical zones
 r = requests.post(f"{BASE}/step", json={"position": [2, 2, 0]})
 d = r.json()
-print(f"[POST /step] Place Ceramic Plate Set at [2,2,0]: {d['observation']['message']}")
+print(f"[POST /step] Place Ceramic Plate Set at [2,2,0]: {d['observation']['message']}  reward={d['reward']:.4f}")
 
 # Place another
 r = requests.post(f"{BASE}/step", json={"position": [2, 1, 0]})
 d = r.json()
-print(f"[POST /step] Place Fuel Can at [2,1,0] (away from zones): {d['observation']['message']}")
+print(f"[POST /step] Place Fuel Can at [2,1,0] (away from zones): {d['observation']['message']}  reward={d['reward']:.4f}")
 
 print(f"\n  3D Grid after placements:")
 for lvl, level_grid in enumerate(d["observation"]["grid"]):
@@ -155,4 +153,4 @@ print("=" * 70)
 print("  Easy:   5×5 grid  | 5 boxes   | blocked cells only")
 print("  Medium: 6×6 grid  | 10 items  | + adjacency constraints")
 print("  Hard:   4×4×3 3D  | 12 items  | + size/fragile/flammable + zones")
-print("  Rewards: 0.0 (placeholder — not implemented yet)")
+print("  Rewards: Computed per step, normalized [0.0, 1.0]")
