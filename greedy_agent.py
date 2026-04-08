@@ -7,10 +7,8 @@ model should converge toward. Shows step-by-step decisions + final grid.
 """
 
 import copy
-import sys
-sys.path.insert(0, "my_env/server")
 
-from your_environment import WarehouseEnvironment, EASY_TASK, MEDIUM_TASK, HARD_TASK
+from my_env.server.your_environment import WarehouseEnvironment, EASY_TASK, MEDIUM_TASK, HARD_TASK
 
 env = WarehouseEnvironment()
 
@@ -137,8 +135,7 @@ def run_greedy_episode(mode):
                 best_pos = pos
 
         # Place at best position
-        result = env.step({"position": best_pos})
-        actual_reward = result["reward"]
+        obs, actual_reward, done, info = env.step({"position": best_pos})
         total_reward += actual_reward
         step_num += 1
 

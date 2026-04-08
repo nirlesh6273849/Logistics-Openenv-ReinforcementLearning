@@ -211,71 +211,72 @@ class WarehouseEnvironment:
         self._products_queue = list(self._task_config.get("products", []))
         self._placed_products = []
 
-        return {"observation": self._build_observation("Episode started.")}
+        return self._get_rl_observation("Episode started.")
 
-    def step(self, action: dict) -> dict:
+    def step(self, action: dict) -> tuple[dict, float, bool, dict]:
         """Place the next product at the given position."""
         if self._done:
-            return {
-                "observation": self._build_observation("Episode finished. Call reset()."),
-                "reward": 0.0,
-                "done": True,
-                "info": {"error": "episode_done"},
-            }
+            return (
+                self._get_rl_observation("Episode finished. Call reset()."),
+                0.0,
+                True,
+                {"error": "episode_done"}
+            )
 
         if not self._episode_id:
-            return {
-                "observation": self._build_observation("No active episode. Call reset()."),
-                "reward": 0.0,
-                "done": False,
-                "info": {"error": "no_episode"},
-            }
+            return (
+                self._get_rl_observation("No active episode. Call reset()."),
+                0.0,
+                False,
+                {"error": "no_episode"}
+            )
 
         if not self._products_queue:
             self._done = True
-            return {
-                "observation": self._build_observation("All products placed."),
-                "reward": 0.0,
-                "done": True,
-                "info": {"result": "all_placed"},
-            }
+            return (
+                self._get_rl_observation("All products placed."),
+                0.0,
+                True,
+                {"result": "all_placed"}
+            )
 
         self._step_count += 1
         position = action.get("position", [])
+        
+        # Check timeout early for invalid moves
+        is_timeout = self._step_count >= self._max_steps
+        if is_timeout:
+            self._done = True
 
         # ── Validate position ────────────────────────────────────────
         expected_dims = 3 if self._mode == "hard" else 2
+        penalty = -0.1  # small penalty for invalid moves to guide RL agents
+
         if len(position) != expected_dims:
-            return {
-                "observation": self._build_observation(
-                    f"Invalid position dimensions. Expected {expected_dims}D, got {len(position)}D."
-                ),
-                "reward": 0.0,
-                "done": False,
-                "info": {"error": "bad_dimensions"},
-            }
+            return (
+                self._get_rl_observation(f"Invalid position dimensions. Expected {expected_dims}D, got {len(position)}D."),
+                penalty,
+                self._done,
+                {"error": "bad_dimensions"}
+            )
 
         if not self._is_in_bounds(position):
-            return {
-                "observation": self._build_observation(
-                    f"Position {position} is out of grid bounds {self._grid_shape}."
-                ),
-                "reward": 0.0,
-                "done": False,
-                "info": {"error": "out_of_bounds"},
-            }
+            return (
+                self._get_rl_observation(f"Position {position} is out of grid bounds {self._grid_shape}."),
+                penalty,
+                self._done,
+                {"error": "out_of_bounds"}
+            )
 
         cell_value = self._get_cell(position)
         if cell_value != 0:
             label = "blocked" if cell_value == -1 else f"occupied by product {cell_value}"
-            return {
-                "observation": self._build_observation(
-                    f"Position {position} is {label}. Choose an empty cell."
-                ),
-                "reward": 0.0,
-                "done": False,
-                "info": {"error": "cell_unavailable"},
-            }
+            return (
+                self._get_rl_observation(f"Position {position} is {label}. Choose an empty cell."),
+                penalty,
+                self._done,
+                {"error": "cell_unavailable"}
+            )
 
         # ── Place the product ────────────────────────────────────────
         product = self._products_queue.pop(0)
@@ -305,18 +306,18 @@ class WarehouseEnvironment:
         elif done:
             msg += " Max steps reached."
 
-        return {
-            "observation": self._build_observation(msg),
-            "reward": reward,
-            "done": done,
-            "info": {
+        return (
+            self._get_rl_observation(msg),
+            reward,
+            done,
+            {
                 "episode_id": self._episode_id,
                 "mode": self._mode,
                 "step_count": self._step_count,
                 "product_placed": product,
                 "position": position,
-            },
-        }
+            }
+        )
 
     def state(self) -> dict:
         """Return current episode metadata."""
@@ -619,3 +620,29 @@ class WarehouseEnvironment:
                 related_ids.add(a)
 
         return [product_map[rid] for rid in related_ids if rid in product_map]
+
+    def _get_rl_observation(self, message: str) -> dict:
+        """
+        Return the observation dict extended with numerical matrices 
+        and feature vectors optimized for RL.
+        """
+        obs = self._build_observation(message)
+        
+        # Add useful numerical mappings for the agent
+        # Create a numerical vector for the current product
+        product_vector = []
+        if obs.get("current_product"):
+            p = obs["current_product"]
+            # Convert properties to numerical flags/values
+            size_map = {"small": 0, "medium": 1, "big": 2}
+            
+            product_vector = [
+                float(p.get("id", 0)),
+                float(p.get("fragile", False)),
+                float(p.get("flammable", False)),
+                float(size_map.get(p.get("size", "medium"), 1))
+            ]
+        obs["product_features"] = product_vector
+        obs["agent_matrix"] = self._grid  # explicitly provide matrix reference
+        
+        return obs

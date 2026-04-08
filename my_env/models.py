@@ -42,6 +42,10 @@ class WarehouseObservation:
     electrical_zones: list = field(default_factory=list)
     safety_rules: list = field(default_factory=list)
 
+    # RL specific mappings
+    product_features: list = field(default_factory=list)
+    agent_matrix: list = field(default_factory=list)
+
 
 @dataclass
 class WarehouseState:

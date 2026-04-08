@@ -59,8 +59,8 @@ async def start(request: StartRequest):
 async def reset():
     """Reset the environment and return initial observation."""
     try:
-        result = env.reset()
-        return result
+        obs = env.reset()
+        return {"observation": obs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -69,8 +69,13 @@ async def reset():
 async def step(action: ActionRequest):
     """Place the next product at the given position."""
     try:
-        result = env.step(action.model_dump())
-        return result
+        obs, reward, done, info = env.step(action.model_dump())
+        return {
+            "observation": obs,
+            "reward": reward,
+            "done": done,
+            "info": info
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
